@@ -1,3 +1,4 @@
+import audioop_lts as audioop  # backport for Python 3.13
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 
@@ -57,3 +58,4 @@ async def classify(ctx,msg:str):
 
 
 bot.run(token)
+
