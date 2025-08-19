@@ -1,6 +1,5 @@
-py-cord
+py-cord>=2.3.0
 Flask
 python-dotenv
 joblib
 scikit-learn
-
