@@ -38,7 +38,7 @@ except FileNotFoundError:
 # --- Bot setup ---
 intents = disnake.Intents.default()
 intents.message_content = True
-bot = commands.Bot(intents=intents, test_guilds=[1388620030358589563])
+bot = commands.InteractionBot(intents=intents, test_guilds=[1388620030358589563])
 
 # --- Helper functions ---
 def chunk_text(text: str, max_len: int = 2000):
@@ -144,3 +144,4 @@ if __name__ == "__main__":
         bot.run(token)
     else:
         print("Error: No token found. Please check your .env file.")
+
