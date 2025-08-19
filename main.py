@@ -3,10 +3,11 @@ import os
 import re
 from flask import Flask
 from threading import Thread
-import discord
+import disnake
+from disnake.ext import commands
 from dotenv import load_dotenv
 import joblib
-from csv_to_dict import load_commandments  # Import at top level
+from csv_to_dict import load_commandments
 
 # --- Flask keep-alive ---
 app = Flask('')
@@ -19,7 +20,6 @@ def run_flask():
     port = int(os.environ.get("PORT", 8080))
     app.run(host='0.0.0.0', port=port)
 
-# Only start Flask thread if we're not in a subprocess (like when running on a WSGI server)
 if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
     Thread(target=run_flask, daemon=True).start()
 
@@ -27,7 +27,6 @@ if os.environ.get("WERKZEUG_RUN_MAIN") != "true":
 load_dotenv()
 token = os.getenv('token')
 
-# Add error handling for model loading
 try:
     model = joblib.load('Testament_Classifier.pkl')
     vectorizer = joblib.load('TC_Vectorizer.pkl')
@@ -37,26 +36,21 @@ except FileNotFoundError:
     model_loaded = False
 
 # --- Bot setup ---
-intents = discord.Intents.default()
+intents = disnake.Intents.default()
 intents.message_content = True
-bot = discord.Bot(intents=intents)  # Pycord Bot
-
-# Guild IDs (preserved from original code)
-GUILD_IDS = [1388620030358589563]
+bot = commands.Bot(intents=intents, test_guilds=[1388620030358589563])
 
 # --- Helper functions ---
 def chunk_text(text: str, max_len: int = 2000):
-    """Split text into chunks that don't exceed Discord's message limit"""
     chunks = []
     while len(text) > max_len:
-        # Try to split at a newline first, otherwise split at space
         split_at = text.rfind("\n", 0, max_len)
         if split_at == -1:
             split_at = text.rfind(" ", 0, max_len)
-        if split_at == -1:  # No spaces or newlines found, force split
+        if split_at == -1:
             split_at = max_len
         chunks.append(text[:split_at])
-        text = text[split_at:].lstrip()  # Remove leading whitespace from next chunk
+        text = text[split_at:].lstrip()
     if text:
         chunks.append(text)
     return chunks
@@ -71,14 +65,11 @@ async def on_message(msg):
     if msg.author == bot.user:
         return
 
-    # Case-insensitive check for "zeus is cool"
     if "zeus is cool" in msg.content.lower():
         await msg.reply("That's right", mention_author=True)
         await msg.add_reaction("✅")
 
-    # Check if bot was mentioned
     if bot.user in msg.mentions:
-        # Remove the mention from the message content
         cleaned_content = re.sub(r'<@!?' + str(bot.user.id) + r'>', '', msg.content).strip().lower()
         
         if "how are you" in cleaned_content:
@@ -98,55 +89,51 @@ async def on_message(msg):
             else:
                 await msg.reply("I'm not sure how to respond to that.", mention_author=True)
 
-    # Process commands (important for slash commands to work alongside on_message)
     await bot.process_commands(msg)
 
 # --- Slash commands ---
-@bot.slash_command(name="greet", description='Greet another user', guild_ids=GUILD_IDS)
-async def greet(ctx, user: discord.User, message: str = ""):
-    """Greet another user with an optional message"""
+@bot.slash_command(name="greet", description='Greet another user')
+async def greet(inter, user: disnake.User, message: str = ""):
     if message:
-        await ctx.respond(f"{ctx.author.mention} says to {user.mention}: {message}")
+        await inter.response.send_message(f"{inter.author.mention} says to {user.mention}: {message}")
     else:
-        await ctx.respond(f"{ctx.author.mention} says hello {user.mention}! 👋")
+        await inter.response.send_message(f"{inter.author.mention} says hello {user.mention}! 👋")
 
-@bot.slash_command(name="classify", description="AI evaluation of OT/NT text", guild_ids=GUILD_IDS)
-async def classify(ctx, text: str):
-    """Classify text as Old or New Testament"""
+@bot.slash_command(name="classify", description="AI evaluation of OT/NT text")
+async def classify(inter, text: str):
     if not model_loaded:
-        await ctx.respond("Classification feature is currently unavailable.")
+        await inter.response.send_message("Classification feature is currently unavailable.")
         return
         
     prediction = model.predict(vectorizer.transform([text]))[0]
     response = "New Testament" if prediction else "Old Testament"
-    await ctx.respond(f'Classification: {response}')
+    await inter.response.send_message(f'Classification: {response}')
 
-@bot.slash_command(name="commandment", description="Get a commandment from the Bible based on words", guild_ids=GUILD_IDS)
-async def commandment(ctx, search_term: str):
-    """Search for commandments containing specific words"""
+@bot.slash_command(name="commandment", description="Get a commandment from the Bible based on words")
+async def commandment(inter, search_term: str):
     try:
         commandments = load_commandments()
         matches = [f'{ref} : {verse}' for ref, verse in commandments.items() 
                   if search_term.lower() in verse.lower()]
 
         if not matches:
-            await ctx.respond("No matches found")
+            await inter.response.send_message("No matches found")
             return
 
         response = "\n".join(matches)
         chunks = chunk_text(response)
 
-        await ctx.respond(chunks[0])
+        await inter.response.send_message(chunks[0])
         for chunk in chunks[1:]:
-            await ctx.followup.send(chunk)
+            await inter.followup.send(chunk)
     except Exception as e:
-        await ctx.respond(f"An error occurred: {str(e)}")
+        await inter.response.send_message(f"An error occurred: {str(e)}")
 
 # --- Error handling ---
 @bot.event
-async def on_application_command_error(ctx, error):
-    if isinstance(error, discord.ApplicationCommandInvokeError):
-        await ctx.respond("An error occurred while executing this command.")
+async def on_slash_command_error(inter, error):
+    if isinstance(error, commands.CommandInvokeError):
+        await inter.response.send_message("An error occurred while executing this command.")
         print(f"Command error: {error.original}")
     else:
         print(f"Other error: {error}")
