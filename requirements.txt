@@ -1,0 +1,7 @@
+py-cord
+aiohttp
+joblib
+scikit-learn
+numpy
+pandas
+python-dotenv
