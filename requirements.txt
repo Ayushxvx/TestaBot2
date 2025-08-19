@@ -1,7 +1,8 @@
-py-cord
+disnake
 aiohttp
 flask
 python-dotenv
 scikit-learn
 joblib
+
 
