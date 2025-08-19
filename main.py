@@ -1,3 +1,18 @@
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b"Bot is running!")
+
+def run_server():
+    server = HTTPServer(("0.0.0.0", 10000), Handler)
+    server.serve_forever()
+
+threading.Thread(target=run_server, daemon=True).start()
+
 import discord
 from discord.ext import commands
 import os
@@ -39,5 +54,6 @@ async def greet(ctx,user:discord.User,msg:str=None):
 async def classify(ctx,msg:str):
     response = "New Testament" if model.predict(vectorizer.transform([msg]))[0] else "Old Testament"
     await ctx.respond(f'Classification : {response}')
+
 
 bot.run(token)
