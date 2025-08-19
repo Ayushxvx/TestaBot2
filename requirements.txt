@@ -1,9 +1,5 @@
-py-cord
-aiohttp
-joblib
-scikit-learn
-numpy
-pandas
-python-dotenv
-flask
-audioop
+discord.py>=2.6.0
+Flask>=2.3.0
+python-dotenv>=1.0.0
+joblib>=1.3.2
+scikit-learn>=1.3.0
